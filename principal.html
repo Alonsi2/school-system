@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة المدير - الإشغال والأخبار</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <nav class="bg-blue-950 text-white shadow-lg p-4">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-4 space-x-reverse">
+        <span class="text-xl font-extrabold text-yellow-400">مدرستي الذكية</span>
+        <span id="userBadge" class="text-sm bg-blue-800 px-3 py-1 rounded-full"></span>
+      </div>
+      <div class="flex items-center space-x-4 space-x-reverse text-sm font-bold">
+        <a href="messages.html" class="hover:text-yellow-400">📩 البريد الداخلي</a>
+        <button onclick="logout()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded">خروج</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto p-6 space-y-6">
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-2xl font-bold text-blue-900 mb-4 text-center">محرك الإشغال اليومي (البحث عن معلم بديل)</h2>
+      <form id="searchForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-2">اليوم</label>
+          <select id="daySelect" class="w-full px-3 py-2 border rounded-lg text-right">
+            <option value="الأحد">الأحد</option>
+            <option value="الإثنين">الإثنين</option>
+            <option value="الثلاثاء">الثلاثاء</option>
+            <option value="الأربعاء">الأربعاء</option>
+            <option value="الخميس">الخميس</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-2">رقم الحصة الشاغرة</label>
+          <select id="periodSelect" class="w-full px-3 py-2 border rounded-lg text-right">
+            <option value="1">الحصة 1</option>
+            <option value="2">الحصة 2</option>
+            <option value="3">الحصة 3</option>
+            <option value="4">الحصة 4</option>
+            <option value="5">الحصة 5</option>
+            <option value="6">الحصة 6</option>
+            <option value="7">الحصة 7</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="w-full bg-blue-900 text-white py-2 rounded-lg font-bold hover:bg-blue-800">بحث عن متاحين</button>
+        </div>
+      </form>
+      <div id="teachersResult" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-xl font-bold text-blue-900 mb-4">نشر جدول الإشغال أو خبر عام</h2>
+      <div id="newsMsg" class="hidden bg-green-100 text-green-700 p-2 rounded mb-4 text-sm text-center"></div>
+      <form id="publishForm" class="space-y-4">
+        <input type="text" id="newsTitle" required placeholder="عنوان الإشغال / الخبر" class="w-full px-3 py-2 border rounded-lg text-right">
+        <textarea id="newsContent" required rows="4" placeholder="اكتب تفاصيل الإشغال هنا..." class="w-full px-3 py-2 border rounded-lg text-right"></textarea>
+        <button type="submit" class="bg-green-700 text-white w-full py-2 rounded-lg font-bold hover:bg-green-600">نشر فوري في قسم آخر الأخبار</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const role = localStorage.getItem('role');
+    if (!['principal', 'assistant', 'admin'].includes(role)) window.location.href = 'index.html';
+    document.getElementById('userBadge').textContent = `مرحباً، ${localStorage.getItem('userName')}`;
+    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const day = document.getElementById('daySelect').value;
+      const period = document.getElementById('periodSelect').value;
+      const container = document.getElementById('teachersResult');
+      container.innerHTML = '<p class="text-gray-500">جاري البحث...</p>';
+
+      const res = await fetch(`http://localhost:5000/api/substitution/available-teachers?day=${day}&periodNumber=${period}`);
+      const data = await res.json();
+      container.innerHTML = data.teachers.map(t => `
+        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 flex justify-between items-center">
+          <div><p class="font-bold text-blue-900">${t.name}</p><p class="text-xs text-gray-600">التخصص: ${t.subject}</p></div>
+          <span class="bg-green-500 text-white text-xs px-2 py-1 rounded">متاح</span>
+        </div>
+      `).join('') || '<p class="text-red-600">لا يوجد معلمون متاحون في هذه الحصة.</p>';
+    });
+
+    document.getElementById('publishForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('newsTitle').value;
+      const content = document.getElementById('newsContent').value;
+      const authorId = localStorage.getItem('userId');
+
+      const res = await fetch('http://localhost:5000/api/substitution/publish-news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content, type: 'substitution', authorId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const box = document.getElementById('newsMsg');
+        box.textContent = data.message;
+        box.classList.remove('hidden');
+        e.target.reset();
+      }
+    });
+  </script>
+</body>
+</html>
