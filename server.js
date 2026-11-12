@@ -29,3 +29,5 @@ const examRoutes = require('./routes/examRoutes');
 app.use('/api/exams', examRoutes);
 const messageRoutes = require('./routes/messageRoutes');
 app.use('/api/messages', messageRoutes);
+const cors = require('cors');
+app.use(cors());
