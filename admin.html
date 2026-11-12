@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة الإداري - استيراد الجداول</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <nav class="bg-blue-950 text-white shadow-lg p-4">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-4 space-x-reverse">
+        <span class="text-xl font-extrabold text-yellow-400">مدرستي الذكية</span>
+        <span id="userBadge" class="text-sm bg-blue-800 px-3 py-1 rounded-full"></span>
+      </div>
+      <div class="flex items-center space-x-4 space-x-reverse bg-blue-900 px-4 py-2 rounded-lg border border-blue-700">
+        <span id="periodStatus" class="text-sm font-bold text-green-300">🔔 جاري الحساب...</span>
+        <span id="liveClock" class="text-xs text-gray-300 border-r border-blue-700 pr-3"></span>
+      </div>
+      <div class="flex items-center space-x-4 space-x-reverse text-sm font-bold">
+        <a href="messages.html" class="hover:text-yellow-400">📩 البريد الداخلي</a>
+        <button onclick="logout()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded">خروج</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-2xl mx-auto mt-10 bg-white rounded-xl shadow-md p-8">
+    <h2 class="text-2xl font-bold text-blue-900 mb-4 text-center">إدارة وجداول المدرسة</h2>
+    <p class="text-gray-600 text-center mb-6">قم بتنزيل نموذج الإكسل المبرمج، وتعبئته بالبرنامج المدرسي، ثم ارفعه أدناه لتحديث قاعدة البيانات تلقائياً.</p>
+
+    <div id="statusBox" class="hidden px-4 py-3 rounded mb-4 text-center text-sm"></div>
+
+    <div class="mb-6 flex justify-center">
+      <a href="School_Master_Schedule_Template.xlsx" download class="bg-green-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition">
+        📥 تحميل نموذج الإكسل المبرمج
+      </a>
+    </div>
+
+    <form id="uploadForm" class="space-y-4 border-t pt-6">
+      <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50">
+        <input type="file" id="scheduleFile" accept=".xlsx, .xls" required class="block w-full text-sm text-gray-500">
+        <p class="text-xs text-gray-500 mt-2">ملفات Excel فقط (.xlsx)</p>
+      </div>
+      <button type="submit" id="uploadBtn" class="w-full bg-blue-900 text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition">
+        رفع واستيراد الجدول المدرسي
+      </button>
+    </form>
+  </div>
+
+  <script>
+    if (localStorage.getItem('role') !== 'admin') window.location.href = 'index.html';
+    document.getElementById('userBadge').textContent = `مرحباً، ${localStorage.getItem('userName')} (إداري)`;
+    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+    const bellSchedule = [
+      { name: 'الطابور الصباحي', start: '07:45', end: '08:00' },
+      { name: 'الحصة الأولى', start: '08:00', end: '08:45' },
+      { name: 'الحصة الثانية', start: '08:45', end: '09:30' },
+      { name: 'الاستراحة الأولى', start: '09:30', end: '09:50' },
+      { name: 'الحصة الثالثة', start: '09:50', end: '10:35' },
+      { name: 'الحصة الرابعة', start: '10:35', end: '11:20' },
+      { name: 'الاستراحة الثانية', start: '11:20', end: '11:35' },
+      { name: 'الحصة الخامسة', start: '11:35', end: '12:20' },
+      { name: 'الحصة السادسة', start: '12:20', end: '13:05' },
+      { name: 'الحصة السابعة', start: '13:05', end: '13:50' }
+    ];
+
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('liveClock').textContent = '🕒 ' + now.toLocaleTimeString('ar-JO');
+      const mins = now.getHours() * 60 + now.getMinutes();
+      let active = 'خارج أوقات الدوام الرسمي';
+      for (const s of bellSchedule) {
+        const [sh, sm] = s.start.split(':').map(Number);
+        const [eh, em] = s.end.split(':').map(Number);
+        if (mins >= sh * 60 + sm && mins < eh * 60 + em) {
+          active = `${s.name} (متبقي ${(eh * 60 + em) - mins} دقيقة)`;
+          break;
+        }
+      }
+      document.getElementById('periodStatus').textContent = '🔔 ' + active;
+    }, 1000);
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('scheduleFile');
+      const statusBox = document.getElementById('statusBox');
+      const formData = new FormData();
+      formData.append('scheduleFile', fileInput.files[0]);
+
+      try {
+        const res = await fetch('http://localhost:5000/api/schedule/import-excel', { method: 'POST', body: formData });
+        const data = await res.json();
+        statusBox.className = res.ok ? 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 text-center text-sm' : 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center text-sm';
+        statusBox.textContent = res.ok ? data.message : (data.error || 'فشل الرفع');
+        statusBox.classList.remove('hidden');
+      } catch (err) {
+        alert('خطأ في الاتصال بالسيرفر');
+      }
+    });
+  </script>
+</body>
+</html>
