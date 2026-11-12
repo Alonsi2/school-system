@@ -27,3 +27,5 @@ const substitutionRoutes = require('./routes/substitutionRoutes');
 app.use('/api/substitution', substitutionRoutes);
 const examRoutes = require('./routes/examRoutes');
 app.use('/api/exams', examRoutes);
+const messageRoutes = require('./routes/messageRoutes');
+app.use('/api/messages', messageRoutes);
