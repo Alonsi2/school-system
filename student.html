@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بوابة الطالب - الامتحانات والعلامات</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <nav class="bg-blue-950 text-white shadow-lg p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <span class="text-xl font-extrabold text-yellow-400">مدرستي الذكية - بوابة الطالب</span>
+      <div class="space-x-4 space-x-reverse text-sm font-bold">
+        <a href="messages.html" class="hover:text-yellow-400">📩 البريد الداخلي</a>
+        <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded">خروج</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto p-6 space-y-6">
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-xl font-bold text-blue-900 mb-4">سجل العلامات والنتائج</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-blue-900 text-white">
+              <th class="p-3">اسم الامتحان</th>
+              <th class="p-3">العلامة المستحقة</th>
+              <th class="p-3">العلامة الكاملة</th>
+              <th class="p-3">التاريخ</th>
+            </tr>
+          </thead>
+          <tbody id="gradesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (localStorage.getItem('role') !== 'student') window.location.href = 'index.html';
+    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+    async function loadGrades() {
+      const studentId = localStorage.getItem('userId');
+      const res = await fetch(`http://localhost:5000/api/exams/student-grades/${studentId}`);
+      const grades = await res.json();
+      const tbody = document.getElementById('gradesTableBody');
+
+      tbody.innerHTML = grades.length ? grades.map(g => `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="p-3 font-bold">${g.examId?.title || 'امتحان'}</td>
+          <td class="p-3 text-green-700 font-bold">${g.score}</td>
+          <td class="p-3">${g.totalMarks}</td>
+          <td class="p-3 text-xs text-gray-500">${new Date(g.createdAt).toLocaleDateString('ar-JO')}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="4" class="p-4 text-center text-gray-500">لا توجد علامات مرصودة حتى الآن.</td></tr>';
+    }
+    loadGrades();
+  </script>
+</body>
+</html>
