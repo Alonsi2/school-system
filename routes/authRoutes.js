@@ -26,3 +26,61 @@ router.put('/change-password', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+const bcrypt = require('bcrypt');
+const User = require('../models/User');
+
+// مسار لإنشاء حسابات تجريبية افتراضية (Admin, Principal, Teacher, Student)
+router.post('/seed-users', async (req, res) => {
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const defaultPassword = await bcrypt.hash('123456', salt);
+
+    const demoUsers = [
+      {
+        name: 'أحمد الإداري',
+        nationalId: '1001',
+        password: defaultPassword,
+        role: 'admin'
+      },
+      {
+        name: 'أ. محمود المدير',
+        nationalId: '2001',
+        password: defaultPassword,
+        role: 'principal'
+      },
+      {
+        name: 'أ. سامر المعلم',
+        nationalId: '3001',
+        password: defaultPassword,
+        role: 'teacher',
+        subject: 'الرياضيات'
+      },
+      {
+        name: 'عمر الطالب',
+        nationalId: '4001',
+        password: defaultPassword,
+        role: 'student'
+      }
+    ];
+
+    for (const u of demoUsers) {
+      await User.findOneAndUpdate(
+        { nationalId: u.nationalId },
+        u,
+        { upsert: true, new: true }
+      );
+    }
+
+    res.status(201).json({
+      message: 'تم إنشاء الحسابات التجريبية بنجاح!',
+      accounts: [
+        { role: 'إداري (Admin)', nationalId: '1001', password: '123456' },
+        { role: 'مدير (Principal)', nationalId: '2001', password: '123456' },
+        { role: 'معلم (Teacher)', nationalId: '3001', password: '123456' },
+        { role: 'طالب (Student)', nationalId: '4001', password: '123456' }
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
