@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة المعلم - إنشاء الامتحانات</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <nav class="bg-blue-950 text-white shadow-lg p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <span class="text-xl font-extrabold text-yellow-400">مدرستي الذكية - بوابة المعلم</span>
+      <div class="space-x-4 space-x-reverse text-sm font-bold">
+        <a href="messages.html" class="hover:text-yellow-400">📩 البريد الداخلي</a>
+        <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded">خروج</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto p-6">
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-2xl font-bold text-blue-900 mb-4 text-center">إنشاء امتحان إلكتروني جديد</h2>
+      <div id="examMsg" class="hidden bg-green-100 text-green-700 p-2 rounded mb-4 text-center text-sm"></div>
+
+      <form id="examForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" id="examTitle" required placeholder="عنوان الامتحان" class="px-3 py-2 border rounded-lg text-right">
+          <input type="text" id="classId" required placeholder="معرف الصف (Class ID)" class="px-3 py-2 border rounded-lg text-right">
+          <input type="number" id="durationMinutes" required value="30" placeholder="المدة بالدقائق" class="px-3 py-2 border rounded-lg text-right">
+        </div>
+
+        <div id="questionsContainer" class="space-y-4 border-t pt-4"></div>
+
+        <button type="button" onclick="addQuestionField()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm font-bold">
+          + إضافة سؤال جديد
+        </button>
+
+        <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-lg font-bold hover:bg-blue-800 mt-4">
+          حفظ ونشر الامتحان الإلكتروني
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    if (localStorage.getItem('role') !== 'teacher') window.location.href = 'index.html';
+    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+    let qCount = 0;
+    function addQuestionField() {
+      qCount++;
+      const div = document.createElement('div');
+      div.className = 'question-block bg-gray-50 p-4 rounded-lg border space-y-2';
+      div.innerHTML = `
+        <p class="font-bold text-xs text-blue-900">السؤال ${qCount}</p>
+        <input type="text" class="q-text w-full px-3 py-2 border rounded text-right bg-white" required placeholder="نص السؤال">
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" class="q-opt px-3 py-1 border rounded text-right bg-white text-sm" required placeholder="الخيار 1">
+          <input type="text" class="q-opt px-3 py-1 border rounded text-right bg-white text-sm" required placeholder="الخيار 2">
+          <input type="text" class="q-opt px-3 py-1 border rounded text-right bg-white text-sm" required placeholder="الخيار 3">
+          <input type="text" class="q-opt px-3 py-1 border rounded text-right bg-white text-sm" required placeholder="الخيار 4">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" class="q-ans px-3 py-1 border rounded text-right bg-white text-sm" required placeholder="الإجابة الصحيحة تماماً">
+          <input type="number" class="q-marks px-3 py-1 border rounded text-right bg-white text-sm" value="1" required placeholder="الدرجة">
+        </div>
+      `;
+      document.getElementById('questionsContainer').appendChild(div);
+    }
+    addQuestionField();
+
+    document.getElementById('examForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const blocks = document.querySelectorAll('.question-block');
+      const questions = Array.from(blocks).map(b => ({
+        questionText: b.querySelector('.q-text').value,
+        options: Array.from(b.querySelectorAll('.q-opt')).map(o => o.value),
+        correctAnswer: b.querySelector('.q-ans').value,
+        marks: Number(b.querySelector('.q-marks').value)
+      }));
+
+      const res = await fetch('http://localhost:5000/api/exams/create-exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: document.getElementById('examTitle').value,
+          teacherId: localStorage.getItem('userId'),
+          classId: document.getElementById('classId').value,
+          durationMinutes: Number(document.getElementById('durationMinutes').value),
+          questions
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const msg = document.getElementById('examMsg');
+        msg.textContent = `${data.message} (رقم الامتحان: ${data.examId})`;
+        msg.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
