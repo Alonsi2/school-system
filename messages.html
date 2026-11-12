@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>البريد الإلكتروني الداخلي</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <nav class="bg-blue-950 text-white shadow-lg p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <span class="text-xl font-extrabold text-yellow-400">البريد الداخلي للمدرسة</span>
+      <button onclick="history.back()" class="bg-blue-800 px-3 py-1 rounded text-sm">عودة للوحة التحكم</button>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-xl shadow-md">
+      <h2 class="text-xl font-bold text-blue-900 mb-4">إرسال رسالة جديدة</h2>
+      <div id="msgStatus" class="hidden bg-green-100 text-green-700 p-2 rounded mb-3 text-sm"></div>
+      <form id="msgForm" class="space-y-4">
+        <input type="text" id="receiverId" placeholder="معرف المستلم (اتركه فارغاً للإدارة)" class="w-full px-3 py-2 border rounded-lg text-right">
+        <input type="text" id="subject" required placeholder="عنوان الرسالة" class="w-full px-3 py-2 border rounded-lg text-right">
+        <textarea id="body" required rows="4" placeholder="نص الرسالة..." class="w-full px-3 py-2 border rounded-lg text-right"></textarea>
+        <button type="submit" class="w-full bg-blue-900 text-white py-2 rounded-lg font-bold">إرسال الرسالة</button>
+      </form>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md">
+      <h2 class="text-xl font-bold text-blue-900 mb-4">صندوق الوارد</h2>
+      <div id="inboxContainer" class="space-y-3 max-h-96 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <script>
+    const userId = localStorage.getItem('userId');
+    if (!userId) window.location.href = 'index.html';
+
+    async function loadInbox() {
+      const res = await fetch(`http://localhost:5000/api/messages/inbox/${userId}`);
+      const msgs = await res.json();
+      document.getElementById('inboxContainer').innerHTML = msgs.length ? msgs.map(m => `
+        <div class="p-3 border rounded-lg bg-gray-50">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-blue-900 text-sm">${m.subject}</span>
+            <span class="text-xs text-gray-500">${new Date(m.createdAt).toLocaleDateString('ar-JO')}</span>
+          </div>
+          <p class="text-xs text-gray-600 mb-1">من: ${m.senderId?.name || 'مستخدم'}</p>
+          <p class="text-sm text-gray-800">${m.body}</p>
+        </div>
+      `).join('') : '<p class="text-gray-500 text-sm text-center">صندوق الوارد فارغ.</p>';
+    }
+    loadInbox();
+
+    document.getElementById('msgForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('http://localhost:5000/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: userId,
+          receiverId: document.getElementById('receiverId').value.trim() || null,
+          subject: document.getElementById('subject').value,
+          body: document.getElementById('body').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const box = document.getElementById('msgStatus');
+        box.textContent = data.message;
+        box.classList.remove('hidden');
+        e.target.reset();
+        loadInbox();
+      }
+    });
+  </script>
+</body>
+</html>
